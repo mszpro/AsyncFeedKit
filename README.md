@@ -1,35 +1,12 @@
-![FeedKit](/FeedKit.png?raw=true)
-
-[![build status](https://travis-ci.org/nmdias/FeedKit.svg)](https://travis-ci.org/nmdias/FeedKit)
-[![cocoapods compatible](https://img.shields.io/badge/cocoapods-compatible-brightgreen.svg)](https://cocoapods.org/pods/FeedKit)
-[![carthage compatible](https://img.shields.io/badge/carthage-compatible-brightgreen.svg)](https://github.com/Carthage/Carthage)
-[![language](https://img.shields.io/badge/spm-compatible-brightgreen.svg)](https://swift.org)
-[![swift](https://img.shields.io/badge/swift-5.0-orange.svg)](https://github.com/nmdias/DefaultsKit/releases)
+This is based on the [FeedKit](https://github.com/nmdias/FeedKit), but adds newest Swift `async` `await` support, so it can be used easily in SwiftUI apps.
+Also, I removed Cocoapods, since it is 21st century and I think Swift Package makes it much easier.
 
 ## Features
 
 - [x] [Atom](https://tools.ietf.org/html/rfc4287)
 - [x] RSS [0.90](http://www.rssboard.org/rss-0-9-0), [0.91](http://www.rssboard.org/rss-0-9-1), [1.00](http://web.resource.org/rss/1.0/spec), [2.00](http://cyber.law.harvard.edu/rss/rss.html)
-- [x] [JSON](https://jsonfeed.org/version/1)  
-- [x] Namespaces
-    - [x] [Dublin Core](http://web.resource.org/rss/1.0/modules/dc/)
-    - [x] [Syndication](http://web.resource.org/rss/1.0/modules/syndication/)
-    - [x] [Content](http://web.resource.org/rss/1.0/modules/content/)
-    - [x] [Media RSS](http://www.rssboard.org/media-rss)
-    - [x] [iTunes Podcasting Tags](https://help.apple.com/itc/podcasts_connect/#/itcb54353390)
-- [x] [Documentation](http://cocoadocs.org/docsets/FeedKit)
-- [x] Unit Test Coverage
-
-## Requirements
-
-![xcode](https://img.shields.io/badge/xcode-11-lightgrey.svg)
-![ios](https://img.shields.io/badge/ios-10-lightgrey.svg)
-![tvos](https://img.shields.io/badge/tvos-10-lightgrey.svg)
-![watchos](https://img.shields.io/badge/watchos-3-lightgrey.svg)
-![mac os](https://img.shields.io/badge/mac%20os-10.12-lightgrey.svg)
-![mac os](https://img.shields.io/badge/ubuntu-16.04-lightgrey.svg)
-
-Installation >> [`instructions`](https://github.com/nmdias/FeedKit/blob/master/INSTALL.md) <<
+- [x] [JSON](https://jsonfeed.org/version/1)
+- [x] Swift async/await support
 
 ## Usage
 
@@ -43,27 +20,32 @@ Get an instance of `FeedParser`
 let parser = FeedParser(URL: feedURL) // or FeedParser(data: data) or FeedParser(xmlStream: stream)
 ```
 
-Then call `parse` or `parseAsync` to start parsing the feed...
-
-> A **common scenario** in UI environments would be parsing a feed **asynchronously** from a user initiated action, such as the touch of a button. e.g.
+Then call `parse`  to start parsing the feed...
 
 ```swift
-// Parse asynchronously, not to block the UI.
-parser.parseAsync(queue: DispatchQueue.global(qos: .userInitiated)) { (result) in
-    // Do your thing, then back to the Main thread
-    DispatchQueue.main.async {
-        // ..and update the UI
-    }
+let parser = FeedParser(URL: userEntryURL)
+let result = try await parser.parse()
+self.fetchedFeedData = result
+switch result {
+    case .atom(let atomFeed):
+        self.fetchedSiteTitle = atomFeed.title
+        self.fetchedSiteSubtitle = atomFeed.subtitle?.value
+        self.latestCuratedDate = atomFeed.updated
+        if let icon = atomFeed.icon,
+           let iconURL = URL(string: icon),
+           let (iconData, _) = try? await URLSession.shared.data(from: iconURL),
+           let iconImage = UIImage(data: iconData) {
+            self.fetchedSiteImage = iconImage
+        }
+    case .rss(let rssFeed):
+        self.fetchedSiteTitle = rssFeed.title
+        self.fetchedSiteSubtitle = rssFeed.description
+        self.latestCuratedDate = rssFeed.lastBuildDate
+    case .json(let jsonFeed):
+        self.fetchedSiteTitle = jsonFeed.title
+        self.fetchedSiteSubtitle = jsonFeed.description
 }
 ```     
-
-Remember, you are responsible to manually bring the result closure to whichever queue is apropriate. Usually to the Main thread, for UI apps, by calling `DispatchQueue.main.async` .
-
-Alternatively, you can also parse synchronously.
-
-```swift
-let result = parser.parse()
-```
 
 ## Parse Result
 
@@ -214,7 +196,7 @@ item?.extensions
 
 ## License
 
-FeedKit is released under the MIT license. See [LICENSE](https://github.com/nmdias/FeedKit/blob/master/LICENSE) for details.
+Released under the MIT license. See LICENSE file for details.
 
 
 
