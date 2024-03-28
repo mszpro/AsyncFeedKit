@@ -34,6 +34,50 @@ public enum Feed: Equatable {
 
 extension Feed {
     
+    public var title: String? {
+        switch self {
+            case .atom(let atomFeed):
+                return atomFeed.title
+            case .rss(let rSSFeed):
+                return rSSFeed.title
+            case .json(let jSONFeed):
+                return jSONFeed.title
+        }
+    }
+    
+    public var itemCount: Int {
+        switch self {
+            case .atom(let atomFeed):
+                return atomFeed.entries?.count ?? 0
+            case .rss(let rSSFeed):
+                return rSSFeed.items?.count ?? 0
+            case .json(let jSONFeed):
+                return jSONFeed.items?.count ?? 0
+        }
+    }
+    
+    public var aiSummarizableContent: String {
+        var contents: [String] = []
+        switch self {
+            case .atom(let atomFeed):
+                for item in (atomFeed.entries ?? []).prefix(15) {
+                    guard let postSummaryText = item.summary?.value ?? item.title else { continue }
+                    contents.append("- \(postSummaryText.prefix(30))")
+                }
+            case .rss(let rSSFeed):
+                for item in (rSSFeed.items ?? []).prefix(15) {
+                    guard let postSummaryText = item.description ?? item.title else { continue }
+                    contents.append("- \(postSummaryText.prefix(30))")
+                }
+            case .json(let jSONFeed):
+                for item in (jSONFeed.items ?? []).prefix(15) {
+                    guard let postSummaryText = item.summary ?? item.title else { continue }
+                    contents.append("- \(postSummaryText.prefix(30))")
+                }
+        }
+        return contents.joined(separator: "\n\n")
+    }
+    
     public var rssFeed: RSSFeed? {
         guard case let .rss(feed) = self else { return nil }
         return feed

@@ -36,16 +36,11 @@ class JSONFeedParser: FeedParserProtocol {
         self.data = data
     }
     
-    func parse() -> Result<Feed, ParserError> {
-        do {
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .formatted(RFC3339DateFormatter())
-            let decoded = try decoder.decode(JSONFeed.self, from: data)
-            return .success(.json(decoded))
-        } catch {
-            return .failure(.internalError(reason: error.localizedDescription))
-        }
-        
+    func parse() throws -> Feed {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .formatted(RFC3339DateFormatter())
+        let decoded = try decoder.decode(JSONFeed.self, from: data)
+        return .json(decoded)
     }
     
 }

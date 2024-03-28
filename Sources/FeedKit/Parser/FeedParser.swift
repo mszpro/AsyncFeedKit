@@ -28,10 +28,16 @@ import Dispatch
 import FoundationNetworking
 #endif
 
+public enum FeedParserError: Error {
+    case feedNotFound
+    case atomFeedModelInitFailed
+    case rssFeedModelInitFailed
+}
+
 /// An RSS and Atom feed parser. `FeedParser` uses `Foundation`'s `XMLParser`.
+@available(iOS 15.0, *)
 public class FeedParser {
     
-    private var data: Data?
     private var url: URL?
     private var xmlStream: InputStream?
     
@@ -45,14 +51,6 @@ public class FeedParser {
         self.url = URL
     }
     
-    /// Initializes the parser with the xml or json contents encapsulated in a 
-    /// given data object.
-    ///
-    /// - Parameter data: XML or JSON data
-    public init(data: Data) {
-        self.data = data
-    }
-    
     /// Initializes the parser with the XML contents encapsulated in a
     /// given InputStream.
     ///
@@ -64,62 +62,39 @@ public class FeedParser {
     /// Starts parsing the feed.
     ///
     /// - Returns: The parsed `Result`.
-    public func parse() -> Result<Feed, ParserError> {
+    public func parse() async throws -> Feed {
         
-        if let url = url {
-            // The `Data(contentsOf:)` initializer doesn't handle the `feed` URI scheme. As such,
-            // it's sanitized first, in case it's in fact a `feed` scheme.
-            guard let sanitizedSchemeUrl = url.replacing(scheme: "feed", with: "http") else {
-                return .failure(.internalError(reason: "Failed url sanitizing."))
-            }
-
-            do {
-                data = try Data(contentsOf: sanitizedSchemeUrl)
-            } catch {
-                return .failure(.internalError(reason: error.localizedDescription))
-            }
+        guard let url else {
+            throw URLError(.badURL)
+        }
+        guard let sanitizedSchemeUrl = url.replacing(scheme: "feed", with: "http") else {
+            throw URLError(.badURL)
         }
         
-        if let data = data {
-            guard let feedDataType = FeedDataType(data: data) else {
-                return .failure(.feedNotFound)
-            }
-            switch feedDataType {
+        // if this is xml stream
+        if let xmlStream = xmlStream {
+            let parser = XMLFeedParser(stream: xmlStream)
+            self.parser = parser
+            return try parser.parse()
+        }
+        
+        let (data, _) = try await URLSession.shared.data(from: sanitizedSchemeUrl)
+        
+        guard let feedDataType = FeedDataType(data: data) else {
+            throw FeedParserError.feedNotFound
+        }
+        
+        switch feedDataType {
             case .json: parser = JSONFeedParser(data: data)
             case .xml:  parser = XMLFeedParser(data: data)
-            }
-            return parser!.parse()
         }
         
-        if let xmlStream = xmlStream {
-            parser = XMLFeedParser(stream: xmlStream)
-            return parser!.parse()
+        guard let parser else {
+            throw URLError(.badServerResponse)
         }
         
-        return .failure(.internalError(reason: "Fatal error. Unable to parse from the initialized state."))
+        return try parser.parse()
         
-    }
-    
-    /// Starts parsing the feed asynchronously. Parsing runs by default on the
-    /// global queue. You are responsible to manually bring the result closure
-    /// to whichever queue is apropriate, if any.
-    ///
-    /// Usually to the Main queue if UI Updates are needed.
-    ///
-    ///     DispatchQueue.main.async {
-    ///         // UI Updates
-    ///     }
-    ///
-    /// - Parameters:
-    ///   - queue: The queue on which the completion handler is dispatched.
-    ///   - result: The parsed `Result`.
-    public func parseAsync(
-        queue: DispatchQueue = DispatchQueue.global(),
-        result: @escaping (Result<Feed, ParserError>) -> Void)
-    {
-        queue.async {
-            result(self.parse())
-        }
     }
     
     /// Stops parsing XML feeds.

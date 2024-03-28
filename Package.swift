@@ -1,23 +1,18 @@
-// swift-tools-version:5.0
+// swift-tools-version:5.5
+// The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 
 let package = Package(
     name: "FeedKit",
     platforms: [
-        .macOS(.v10_12),
-        .iOS(.v10),
-        .tvOS(.v10),
-        .watchOS(.v3)
+        .iOS(.v15)
     ],
     products: [
         .library(name: "FeedKit", targets: ["FeedKit"]),
-    ],
+    ], 
+    dependencies: [ ],
     targets: [
-        .target(name: "FeedKit", dependencies: []),
-        .testTarget(name: "Tests", dependencies: ["FeedKit"], path: "Tests")
-    ],
-    swiftLanguageVersions: [
-        .v5
+        .target(name: "FeedKit", dependencies: [])
     ]
 )

@@ -75,28 +75,28 @@ class XMLFeedParser: NSObject, XMLParserDelegate, FeedParserProtocol {
     var parseComplete = false
     
     /// Starts parsing the feed.
-    func parse() -> Result<Feed, ParserError> {
+    func parse() throws -> Feed {
         let _ = self.xmlParser.parse()
         
         if let error = parsingError {
-            return .failure(.internalError(reason: error.localizedDescription))
+            throw error
         }
         
         guard let feedType = feedType else {
-            return .failure(.feedNotFound)
+            throw URLError(.fileDoesNotExist)
         }
         
         switch feedType {
         case .atom:
             guard let atomFeed = atomFeed else {
-                return .failure(.internalError(reason: "Unable to initialize atom feed model"))
+                throw FeedParserError.atomFeedModelInitFailed
             }
-            return .success(.atom(atomFeed))
+            return .atom(atomFeed)
         case .rdf, .rss:
             guard let rssFeed = rssFeed else {
-                return .failure(.internalError(reason: "Unable to initialize rss feed model"))
+                throw FeedParserError.rssFeedModelInitFailed
             }
-            return .success(.rss(rssFeed))
+            return .rss(rssFeed)
         }
         
     }
